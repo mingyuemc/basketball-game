@@ -1,0 +1,13 @@
+# dependencies
+node_modules/
+
+# build output
+hoops-arena/dist/
+dist/
+
+# logs / os
+*.log
+.DS_Store
+
+# vite
+.vite/
