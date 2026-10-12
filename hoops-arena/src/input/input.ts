@@ -48,9 +48,10 @@ export class Input {
   update() {
     const k = this.keys;
     const fwd = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
-    const side = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
+    // 摄像机固定在球员身后、朝向篮筐（+z），此时世界 +x 显示在屏幕左侧，故左右输入需取反
+    const screenRight = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
     this.moveZ = fwd;
-    this.moveX = side;
+    this.moveX = -screenRight;
     this.sprint = k.has('ShiftLeft') || k.has('ShiftRight');
   }
 
