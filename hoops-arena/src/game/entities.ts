@@ -17,6 +17,7 @@ export class Player {
   team: Team;
   isHuman: boolean;
   name: string;
+  jersey: number;        // 球衣号码
 
   pos = new THREE.Vector3();
   vel = new THREE.Vector3();
@@ -43,11 +44,12 @@ export class Player {
 
   brain: AIBrain;
 
-  constructor(id: number, team: Team, isHuman: boolean, name: string, x = 0, z = 0) {
+  constructor(id: number, team: Team, isHuman: boolean, name: string, jersey: number, x = 0, z = 0) {
     this.id = id;
     this.team = team;
     this.isHuman = isHuman;
     this.name = name;
+    this.jersey = jersey;
     this.pos.set(x, 0, z);
     this.brain = {
       reactTimer: Math.random() * 0.3,

@@ -70,7 +70,9 @@ export class World {
 
   // ---------------- 建队 ----------------
   private buildTeams() {
-    const mk = (id: number, team: Team, human: boolean, name: string) => new Player(id, team, human, name);
+    // 球衣号码：每名球员唯一（与 id 对应）
+    const mk = (id: number, team: Team, human: boolean, name: string) =>
+      new Player(id, team, human, name, team === 'A' ? id : id + 3);
     if (this.mode === '1v1') {
       this.localPlayer = mk(1, 'A', true, 'YOU');
       this.players.push(this.localPlayer, mk(2, 'B', false, 'CPU'));
@@ -78,11 +80,11 @@ export class World {
       this.localPlayer = mk(1, 'A', true, 'YOU');
       this.players.push(
         this.localPlayer,
-        mk(2, 'A', false, '队友1'),
-        mk(3, 'A', false, '队友2'),
-        mk(4, 'B', false, '对手1'),
-        mk(5, 'B', false, '对手2'),
-        mk(6, 'B', false, '对手3'),
+        mk(2, 'A', false, 'KAI'),
+        mk(3, 'A', false, 'LEO'),
+        mk(4, 'B', false, 'JAX'),
+        mk(5, 'B', false, 'RYO'),
+        mk(6, 'B', false, 'ZED'),
       );
     }
     // 人类玩家控制索引

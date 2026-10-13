@@ -3,7 +3,206 @@ import { BALL, COURT } from '../core/constants';
 import type { World } from '../game/world';
 import type { Player } from '../game/entities';
 
-const TEAM_COLOR: Record<string, number> = { A: 0x2fd6a0, B: 0xff6b6b };
+const TEAM_PRIMARY: Record<string, number> = { A: 0x2fd6a0, B: 0xff6b6b };
+const TEAM_SECONDARY: Record<string, number> = { A: 0x0d3d2e, B: 0x3a0e0e };
+
+/** 球衣贴图：前片居中带号码、队徽、姓名条。两侧留纯色便于贴合胶囊前后 */
+function makeJerseyTexture(team: 'A' | 'B', number: number, name: string): THREE.CanvasTexture {
+  const W = 256, H = 384;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const g = canvas.getContext('2d')!;
+
+  const primary = '#' + TEAM_PRIMARY[team].toString(16).padStart(6, '0');
+  const secondary = '#' + TEAM_SECONDARY[team].toString(16).padStart(6, '0');
+
+  // 背景：球衣主色
+  g.fillStyle = primary;
+  g.fillRect(0, 0, W, H);
+
+  // 球衣高光（中央略亮、两侧略暗）
+  const grad = g.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, 'rgba(0,0,0,0.35)');
+  grad.addColorStop(0.5, 'rgba(255,255,255,0.10)');
+  grad.addColorStop(1, 'rgba(0,0,0,0.35)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, W, H);
+
+  // 领口（V 形）
+  g.fillStyle = secondary;
+  g.beginPath();
+  g.moveTo(W * 0.42, 0);
+  g.lineTo(W * 0.5, H * 0.06);
+  g.lineTo(W * 0.58, 0);
+  g.closePath();
+  g.fill();
+  // 领口描边
+  g.strokeStyle = 'rgba(255,255,255,0.5)';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(W * 0.42, 0);
+  g.lineTo(W * 0.5, H * 0.06);
+  g.lineTo(W * 0.58, 0);
+  g.stroke();
+
+  // 队徽：左上角盾形 + 队名缩写
+  g.fillStyle = secondary;
+  g.beginPath();
+  g.moveTo(W * 0.08, H * 0.08);
+  g.lineTo(W * 0.22, H * 0.08);
+  g.lineTo(W * 0.22, H * 0.16);
+  g.lineTo(W * 0.15, H * 0.21);
+  g.lineTo(W * 0.08, H * 0.16);
+  g.closePath();
+  g.fill();
+  g.fillStyle = primary;
+  g.font = 'bold 18px sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(team === 'A' ? 'H' : 'V', W * 0.15, H * 0.135);
+
+  // 队名（球衣上方）
+  g.fillStyle = 'rgba(255,255,255,0.92)';
+  g.font = 'bold 22px sans-serif';
+  g.textAlign = 'center';
+  g.fillText(team === 'A' ? 'HOOPS' : 'VENOM', W / 2, H * 0.075);
+
+  // 号码（巨大，占据球衣中部）
+  const numStr = String(number);
+  const numSize = numStr.length >= 2 ? 110 : 140;
+  g.fillStyle = '#ffffff';
+  g.font = `bold ${numSize}px "Arial Black", sans-serif`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  // 描边
+  g.strokeStyle = secondary;
+  g.lineWidth = 8;
+  g.strokeText(numStr, W / 2, H * 0.45);
+  g.fillText(numStr, W / 2, H * 0.45);
+
+  // 底部分隔线
+  g.strokeStyle = 'rgba(255,255,255,0.4)';
+  g.lineWidth = 3;
+  g.beginPath();
+  g.moveTo(W * 0.1, H * 0.78);
+  g.lineTo(W * 0.9, H * 0.78);
+  g.stroke();
+
+  // 球衣底部边饰
+  g.fillStyle = secondary;
+  g.fillRect(0, H * 0.92, W, H * 0.08);
+  g.fillStyle = 'rgba(255,255,255,0.25)';
+  for (let i = 0; i < W; i += 16) g.fillRect(i, H * 0.95, 8, 2);
+
+  // 姓名条（球衣下方，背号上方偏右）
+  if (name) {
+    g.fillStyle = secondary;
+    g.fillRect(W * 0.22, H * 0.81, W * 0.56, H * 0.08);
+    g.fillStyle = '#ffffff';
+    g.font = 'bold 18px sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(name, W / 2, H * 0.85);
+  }
+
+  // 球衣"纤维"纹理（细斜线，营造运动衫质感）
+  g.strokeStyle = 'rgba(255,255,255,0.04)';
+  g.lineWidth = 1;
+  for (let i = -H; i < W; i += 6) {
+    g.beginPath();
+    g.moveTo(i, 0);
+    g.lineTo(i + H, H);
+    g.stroke();
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
+}
+
+/** 面部贴图：眼、鼻、嘴、护牙护具等 */
+function makeFaceTexture(team: 'A' | 'B'): THREE.CanvasTexture {
+  const S = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = S; canvas.height = S;
+  const g = canvas.getContext('2d')!;
+
+  const primary = '#' + TEAM_PRIMARY[team].toString(16).padStart(6, '0');
+  const secondary = '#' + TEAM_SECONDARY[team].toString(16).padStart(6, '0');
+
+  // 皮肤底色
+  g.fillStyle = '#d8a07a';
+  g.fillRect(0, 0, S, S);
+
+  // 头带
+  g.fillStyle = primary;
+  g.fillRect(0, S * 0.32, S, S * 0.12);
+  g.fillStyle = secondary;
+  g.fillRect(0, S * 0.42, S, S * 0.03);
+  // 头带队徽
+  g.fillStyle = '#ffffff';
+  g.font = 'bold 16px sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(team, S * 0.5, S * 0.38);
+
+  // 眉毛
+  g.strokeStyle = '#3b2a1a';
+  g.lineWidth = 3;
+  g.beginPath();
+  g.moveTo(S * 0.30, S * 0.55); g.lineTo(S * 0.45, S * 0.52);
+  g.moveTo(S * 0.55, S * 0.52); g.lineTo(S * 0.70, S * 0.55);
+  g.stroke();
+
+  // 眼睛
+  g.fillStyle = '#1a1a1a';
+  g.beginPath();
+  g.ellipse(S * 0.37, S * 0.62, 5, 3, 0, 0, Math.PI * 2);
+  g.ellipse(S * 0.63, S * 0.62, 5, 3, 0, 0, Math.PI * 2);
+  g.fill();
+  // 眼神高光
+  g.fillStyle = '#ffffff';
+  g.beginPath();
+  g.arc(S * 0.38, S * 0.61, 1.5, 0, Math.PI * 2);
+  g.arc(S * 0.64, S * 0.61, 1.5, 0, Math.PI * 2);
+  g.fill();
+
+  // 鼻子
+  g.strokeStyle = 'rgba(0,0,0,0.45)';
+  g.lineWidth = 1.5;
+  g.beginPath();
+  g.moveTo(S * 0.5, S * 0.62);
+  g.lineTo(S * 0.48, S * 0.72);
+  g.lineTo(S * 0.52, S * 0.72);
+  g.stroke();
+
+  // 嘴
+  g.strokeStyle = '#5a2a1a';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(S * 0.42, S * 0.80);
+  g.quadraticCurveTo(S * 0.5, S * 0.84, S * 0.58, S * 0.80);
+  g.stroke();
+
+  // 护牙（mouthguard，篮球员常戴）
+  g.fillStyle = primary;
+  g.beginPath();
+  g.moveTo(S * 0.42, S * 0.82);
+  g.quadraticCurveTo(S * 0.5, S * 0.92, S * 0.58, S * 0.82);
+  g.quadraticCurveTo(S * 0.5, S * 0.86, S * 0.42, S * 0.82);
+  g.fill();
+  g.strokeStyle = 'rgba(255,255,255,0.5)';
+  g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(S * 0.42, S * 0.82);
+  g.quadraticCurveTo(S * 0.5, S * 0.92, S * 0.58, S * 0.82);
+  g.stroke();
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
 
 /** 球场地面贴图（按世界坐标绘制，px/m 缩放） */
 function makeCourtTexture(): THREE.CanvasTexture {
@@ -256,44 +455,96 @@ export class GameScene {
     if (g) return g;
     g = new THREE.Group();
 
-    const color = TEAM_COLOR[p.team];
-    const bodyMat = new THREE.MeshStandardMaterial({
-      color, roughness: 0.7, metalness: 0.05,
-      emissive: p.isHuman ? new THREE.Color(color).multiplyScalar(0.18) : new THREE.Color(0x000000),
-    });
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0xd8a07a, roughness: 0.8 });
+    const color = TEAM_PRIMARY[p.team];
+    const jerseyMap = makeJerseyTexture(p.team, p.jersey, p.name);
+    const faceMap = makeFaceTexture(p.team);
 
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.0, 6, 14), bodyMat);
-    body.position.y = 0.8;
+    const jerseyMat = new THREE.MeshStandardMaterial({
+      map: jerseyMap,
+      color: 0xffffff,
+      roughness: 0.55,
+      metalness: 0.08,
+      emissive: p.isHuman ? new THREE.Color(color).multiplyScalar(0.10) : new THREE.Color(0x000000),
+    });
+    const armMat = new THREE.MeshStandardMaterial({
+      map: jerseyMap,
+      color: 0xffffff,
+      roughness: 0.6,
+    });
+    const headMat = new THREE.MeshStandardMaterial({
+      map: faceMap,
+      color: 0xffffff,
+      roughness: 0.75,
+    });
+
+    // 躯干：胶囊形 → 贴球衣贴图
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.0, 6, 14), jerseyMat);
+    body.position.y = 0.85;
     body.castShadow = true;
     g.add(body);
 
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.21, 16, 12), skinMat);
-    head.position.y = 1.72;
+    // 短裤：略深，区分躯干与腿
+    const shorts = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.30, 0.26, 0.32, 14, 1, true),
+      new THREE.MeshStandardMaterial({
+        color: p.team === 'A' ? 0xffffff : 0x111418,
+        roughness: 0.7,
+      }),
+    );
+    shorts.position.y = 0.36;
+    shorts.castShadow = true;
+    g.add(shorts);
+
+    // 头
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 18, 14), headMat);
+    head.position.y = 1.74;
     head.castShadow = true;
     g.add(head);
 
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.16, 8),
-      new THREE.MeshStandardMaterial({ color: 0xffffff }));
-    nose.rotation.x = Math.PI / 2;
-    nose.position.set(0, 1.72, 0.2);
-    g.add(nose);
+    // 护腕（前臂）
+    const wristMat = new THREE.MeshStandardMaterial({
+      color, roughness: 0.5, emissive: new THREE.Color(color).multiplyScalar(0.25),
+    });
+    const wristL = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.105, 0.10, 12), wristMat);
+    wristL.position.set(0, 1.18, 0.32);
+    g.add(wristL);
 
-    // 手臂（简单示意，指向身前）
-    const arms = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.5, 4, 8), bodyMat);
+    // 手臂（指向身前）
+    const arms = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.5, 4, 8), armMat);
     arms.rotation.x = Math.PI / 2.2;
-    arms.position.set(0, 1.28, 0.16);
+    arms.position.set(0, 1.32, 0.16);
     arms.castShadow = true;
     g.add(arms);
 
+    // 鞋：两个胶囊，黑底白边
+    const shoeMat = new THREE.MeshStandardMaterial({ color: 0x111418, roughness: 0.4, metalness: 0.05 });
+    const shoeL = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.22, 4, 8), shoeMat);
+    shoeL.rotation.z = Math.PI / 2;
+    shoeL.position.set(-0.12, 0.05, 0.08);
+    g.add(shoeL);
+    const shoeR = shoeL.clone();
+    shoeR.position.x = 0.12;
+    g.add(shoeR);
+
+    // 发光脚环（跑动时更醒目）
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(0.32, 0.46, 28),
+      new THREE.MeshBasicMaterial({
+        color, transparent: true, opacity: 0.9, side: THREE.DoubleSide,
+      }),
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.015;
+    g.add(ring);
+
+    // 头顶：持有者头顶发光标记
     if (p.isHuman) {
-      const ring = new THREE.Mesh(
-        new THREE.RingGeometry(0.34, 0.48, 24),
-        new THREE.MeshBasicMaterial({ color: 0x2fd6a0, transparent: true, opacity: 0.85, side: THREE.DoubleSide }),
+      const halo = new THREE.Mesh(
+        new THREE.SphereGeometry(0.06, 10, 8),
+        new THREE.MeshBasicMaterial({ color: 0x2fd6a0 }),
       );
-      ring.rotation.x = -Math.PI / 2;
-      ring.position.y = 0.02;
-      g.add(ring);
+      halo.position.y = 2.06;
+      g.add(halo);
     }
 
     this.scene.add(g);
