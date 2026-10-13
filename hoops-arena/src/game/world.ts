@@ -11,9 +11,12 @@ export interface HumanInput {
   moveX: number;
   moveZ: number;
   sprint: boolean;
-  jump: boolean;   // 边沿
-  pass: boolean;   // 边沿
-  steal: boolean;  // 边沿
+  jump: boolean;     // 边沿
+  pass: boolean;     // 边沿
+  steal: boolean;    // 边沿
+  fake: boolean;     // 边沿：假动作（胯下/背后）
+  iso: boolean;      // 边沿：背身/要球
+  shootTap: boolean; // 边沿：投篮"点击"（2K 风格：第一次按下=开始蓄力；再次按下=出手）
   shootHeld: boolean;
 }
 
@@ -52,7 +55,9 @@ export class World {
   events: GameEvent[] = [];
   localPlayer!: Player;
   humanInput: HumanInput = {
-    moveX: 0, moveZ: 0, sprint: false, jump: false, pass: false, steal: false, shootHeld: false,
+    moveX: 0, moveZ: 0, sprint: false,
+    jump: false, pass: false, steal: false, fake: false, iso: false, shootTap: false,
+    shootHeld: false,
   };
 
   private pendingPossession: Team = 'A';
@@ -212,16 +217,37 @@ export class World {
     if (inp.jump) p.wantsJump = true;
 
     if (p.hasBall) {
-      if (inp.shootHeld) {
-        if (!p.charging) { p.charging = true; p.chargeTime = 0; }
+      // 2K 风格投篮：第一次点击 → 开始蓄力；再次点击 → 出手
+      // 急停跳投：非持球移动状态(跑) 中按左键 → 立即起跳+蓄力
+      const isMovingFast = p.speed2D > 1.2;
+      if (inp.shootTap) {
+        if (!p.charging) {
+          // 进入蓄力；如果移动中且之前未站立 → 触发急停跳投
+          p.charging = true;
+          p.chargeTime = 0;
+          p.stopAndPop = isMovingFast;
+          if (isMovingFast) p.yVel = Math.max(p.yVel, PLAYER.jumpVel * 0.85);
+        } else {
+          // 第二次按下 → 出手
+          this.shootPlayer(p, p.chargeTime / SHOOT.powerMaxTime, false);
+        }
+      }
+      if (p.charging) {
         p.chargeTime = Math.min(p.chargeTime + dt, SHOOT.powerMaxTime);
-      } else if (p.charging) {
-        this.shootPlayer(p, p.chargeTime / SHOOT.powerMaxTime, false);
+        // 超时（约 1.3s）→ 自动以当前蓄力出手，避免无限等待
+        if (p.chargeTime >= SHOOT.powerMaxTime * 1.1) {
+          this.shootPlayer(p, Math.min(1, p.chargeTime / SHOOT.powerMaxTime), false);
+        }
       }
       if (inp.pass) this.passFrom(p);
-    } else if (p.charging) {
-      p.charging = false;
-      p.chargeTime = 0;
+      if (inp.fake) this.doFake(p);
+    } else {
+      // 不持球时：清掉蓄力状态（但保留极短窗口允许接球即投的衔接）
+      if (p.charging) {
+        p.charging = false;
+        p.chargeTime = 0;
+        p.stopAndPop = false;
+      }
     }
 
     if (inp.steal) this.trySteal(p);
@@ -243,6 +269,20 @@ export class World {
     const m = PLAYER.radius;
     p.pos.x = Math.max(-COURT.halfWidth + m, Math.min(COURT.halfWidth - m, p.pos.x));
     p.pos.z = Math.max(COURT.minZ + m, Math.min(COURT.maxZ - m, p.pos.z));
+
+    // 2K 风格：急停跳投 - 强制减速到接近 0，给"急停"反馈
+    if (p.stopAndPop && p.speed2D > 0.4) {
+      const decel = 1 - Math.exp(-12 * dt);
+      p.vel.x -= p.vel.x * decel;
+      p.vel.z -= p.vel.z * decel;
+    }
+    // 2K 风格：假动作期间 - 强制减速（顿一下）
+    if (p.fakeTimer > 0) {
+      const decel = 1 - Math.exp(-16 * dt);
+      p.vel.x -= p.vel.x * decel;
+      p.vel.z -= p.vel.z * decel;
+      p.fakeTimer = Math.max(0, p.fakeTimer - dt);
+    }
 
     // 跳跃
     if (p.wantsJump && p.pos.y <= 0.001 && p.shootCooldown <= 0) p.yVel = PLAYER.jumpVel;
@@ -434,6 +474,7 @@ export class World {
     p.hasBall = false;
     p.charging = false;
     p.chargeTime = 0;
+    p.stopAndPop = false;
     p.shootCooldown = 0.55;
 
     b.pos.copy(release);
@@ -490,6 +531,13 @@ export class World {
       p.steals++;
       this.event(`${p.isHuman ? '你' : p.name} 抢断!`, 'steal');
     }
+  }
+
+  /** 2K 风格假动作：持球瞬间向一侧前倾，0.4s 内若被贴身会触发对手失位 */
+  doFake(p: Player) {
+    if (!p.hasBall) return;
+    p.fakeTimer = 0.45;
+    this.event(`${p.isHuman ? '你' : p.name} 假动作`, 'fake');
   }
 
   // ---------------- 得分 / 结束 ----------------

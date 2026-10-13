@@ -36,6 +36,8 @@ export class Player {
   shootCooldown = 0;
   stealCooldown = 0;
   dribblePhase = 0;
+  stopAndPop = false;   // 2K 风格：急停跳投标志（移动中按投篮）
+  fakeTimer = 0;        // 假动作剩余时间（影响动画）
 
   points = 0;
   rebounds = 0;

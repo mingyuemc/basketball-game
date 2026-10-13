@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { COURT } from '../core/constants';
 import type { Player } from './entities';
-import { shotDistance } from './shooting';
+import { perfectPowerFor, shotDistance } from './shooting';
 import type { World } from './world';
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
@@ -66,12 +66,32 @@ function offenseWithBall(p: Player, world: World, dt: number) {
   const defDist = def ? planar(p.pos.x, p.pos.z, def.pos.x, def.pos.z) : 99;
   const open = defDist > 1.7;
 
+  // 2K 风格：AI 也先蓄力再出手（蓄力期间停在原地，让玩家看到"蓄力"动画）
+  if (p.charging) {
+    p.chargeTime = Math.min(p.chargeTime + dt, 1.1);
+    // 到达 ~70% 蓄力出手（接近完美点）
+    if (p.chargeTime >= 0.78) {
+      const power = perfectPowerFor(p);
+      world.shootPlayer(p, power, true, P.shotNoise, P.dirNoise);
+      return;
+    }
+    moveToward(p, p.pos.x, p.pos.z, false);
+    return;
+  }
+
   if (b.reactTimer <= 0) {
     b.reactTimer = P.reaction * (0.7 + Math.random() * 0.6);
 
-    // 空位或足够近 → 出手
+    // 空位或足够近 → 进入蓄力（移动中会触发急停跳投）
     if (d < 6.2 && (open || Math.random() < 0.3)) {
-      world.aiShoot(p, P.shotNoise, P.dirNoise);
+      p.charging = true;
+      p.chargeTime = 0;
+      p.stopAndPop = p.speed2D > 1.2;
+      if (p.stopAndPop) p.yVel = Math.max(p.yVel, 4.0);
+      // 急停：把水平速度减下来
+      p.vel.x *= 0.3;
+      p.vel.z *= 0.3;
+      b.reactTimer = 1.0;
       return;
     }
     // 有队友且被贴身 → 传球

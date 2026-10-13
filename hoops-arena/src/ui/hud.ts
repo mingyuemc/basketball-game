@@ -6,6 +6,7 @@ const KIND_COLOR: Record<string, string> = {
   steal: '#ff8a1e',
   violation: '#ffd166',
   oob: '#ffd166',
+  fake: '#9bd1ff',
   start: '#ffffff',
   end: '#ffffff',
 };
@@ -18,6 +19,7 @@ export class HUD {
   private powerWrap = document.getElementById('powerWrap')!;
   private powerFill = document.getElementById('powerFill')!;
   private perfectZone = document.getElementById('perfectZone')!;
+  private powerHint = document.getElementById('powerHint')!;
   private msg = document.getElementById('msg')!;
   private fpsEl = document.getElementById('fps')!;
 
@@ -40,9 +42,10 @@ export class HUD {
     this.shotClock.textContent = String(sc);
     this.shotClock.classList.toggle('warn', sc <= 5);
 
-    // 蓄力条
+    // 蓄力条（2K 风格：绿区=完美，蓄力越接近绿区提示越亮）
     const lp = world.localPlayer;
     const hasBall = !!(lp && lp.hasBall);
+    const charging = !!(lp && lp.charging);
     this.powerWrap.classList.toggle('active', hasBall);
     if (hasBall) {
       const ratio = world.getChargeRatio();
@@ -51,6 +54,23 @@ export class HUD {
       const left = Math.max(0, Math.min(1, perfect - 0.05)) * 100;
       this.perfectZone.style.left = `calc(${left}% )`;
       this.perfectZone.style.width = '12%';
+
+      // 2K 提示：未蓄力显示"点按开始"；蓄力中显示"再按出手"
+      if (this.powerHint) {
+        if (!charging) {
+          this.powerHint.textContent = '点击左键开始蓄力';
+          this.powerHint.classList.add('show');
+        } else {
+          this.powerHint.textContent = '再次点击出手';
+          this.powerHint.classList.add('show');
+        }
+      }
+      // 接近完美区时，蓄力条变金色高亮
+      const inPerfect = charging && Math.abs(ratio - perfect) < 0.07;
+      this.powerWrap.classList.toggle('onPerfect', inPerfect);
+    } else {
+      if (this.powerHint) this.powerHint.classList.remove('show');
+      this.powerWrap.classList.remove('onPerfect');
     }
 
     // 事件消息

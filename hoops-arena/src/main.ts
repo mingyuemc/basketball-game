@@ -89,6 +89,9 @@ function startApp() {
         jump: edges.jump,
         pass: edges.pass,
         steal: edges.steal,
+        fake: edges.fake,
+        iso: edges.iso,
+        shootTap: edges.shootTap,
         shootHeld: input.shootHeld,
       };
       acc += dt;

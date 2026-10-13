@@ -42,15 +42,26 @@
     @keyframes pulse { 50% { opacity: .45; } }
 
     #powerWrap {
-      position: absolute; bottom: 58px; left: 50%; transform: translateX(-50%);
+      position: absolute; bottom: 78px; left: 50%; transform: translateX(-50%);
       width: 320px; height: 16px; border-radius: 9px; overflow: hidden;
       background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.16);
-      opacity: 0; transition: opacity .18s;
+      opacity: 0; transition: opacity .18s, border-color .15s, box-shadow .15s;
       box-shadow: 0 6px 20px rgba(0,0,0,.4);
     }
     #powerWrap.active { opacity: 1; }
+    #powerWrap.onPerfect { border-color: #ffd166; box-shadow: 0 6px 24px rgba(255,209,102,.5); }
     #perfectZone { position: absolute; top: -3px; bottom: -3px; background: rgba(52,224,161,.45); border-left: 2px solid rgba(52,224,161,.9); border-right: 2px solid rgba(52,224,161,.9); border-radius: 4px; }
-    #powerFill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg,#ffd166,#ff8a1e); }
+    #powerFill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg,#ffd166,#ff8a1e); transition: background .15s; }
+    #powerWrap.onPerfect #powerFill { background: linear-gradient(90deg,#34e0a1,#ffd166); }
+
+    #powerHint {
+      position: absolute; bottom: 56px; left: 50%; transform: translateX(-50%);
+      padding: 4px 12px; border-radius: 7px;
+      background: rgba(10,14,22,.66); border: 1px solid rgba(255,255,255,.10);
+      font-size: 12px; font-weight: 700; letter-spacing: 1px; opacity: 0;
+      transition: opacity .18s; pointer-events: none;
+    }
+    #powerHint.show { opacity: .92; }
 
     #msg {
       position: absolute; top: 42%; left: 50%; transform: translate(-50%,-50%) scale(.9);
@@ -112,9 +123,10 @@
       <div id="perfectZone"></div>
       <div id="powerFill"></div>
     </div>
+    <div id="powerHint">点击左键开始蓄力</div>
     <div id="msg"></div>
     <div id="fps">-- FPS</div>
-    <div id="hint">WASD 移动 · Shift 冲刺 · 左键蓄力投篮 · 右键传球 · 空格 跳跃/盖帽 · E 抢断</div>
+    <div id="hint">WASD 移动 · Shift 冲刺 · <b>左键 点击投篮</b>(点一次蓄·再点出手) · 移动中点 = 急停跳投 · 右键传球 · Q 假动作 · 空格 跳跃 · E 抢断</div>
   </div>
 
   <div id="menu">

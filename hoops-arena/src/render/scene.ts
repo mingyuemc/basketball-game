@@ -567,6 +567,12 @@ export class GameScene {
       if (p.anim === 'run' || p.anim === 'dribble') {
         g.position.y += Math.abs(Math.sin(performance.now() / 90)) * 0.05;
       }
+      // 2K 风格：急停跳投 — 球员在空中时整体略向前倾
+      if (p.pos.y > 0.05 && p.charging) {
+        g.rotation.x = -0.2;
+      } else {
+        g.rotation.x = 0;
+      }
       // 蓄力时手臂抬起示意：按 name 找子节点（避免索引随 mesh 顺序改变）
       const arms = g.getObjectByName('arms') as THREE.Mesh | null;
       if (arms) arms.rotation.x = p.charging ? Math.PI / 4 : Math.PI / 2.2;
