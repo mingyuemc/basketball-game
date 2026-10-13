@@ -37,7 +37,8 @@ export function stepBall(ball: Ball, dt: number): BallStepResult {
   return { scored, hitRim };
 }
 
-/** 篮筐：把框看作水平圆环（torus），求球心到环的最近点并做弹性反弹 */
+/** 篮筐：把框看作水平圆环（torus），只对"球心水平落在环内、且不在环中央落区"的部分做擦框反弹；
+ *  球心正中央穿过（半径 < ballRadius）视为正常进球路径，不与管碰撞 */
 function resolveRim(ball: Ball): boolean {
   const r = BALL.radius;
   const tube = COURT.rimTube;
@@ -47,10 +48,16 @@ function resolveRim(ball: Ball): boolean {
   const dz = ball.pos.z - RIM.z;
   const horiz = Math.hypot(dx, dz);
 
+  // 球心在环正中央（半径 < 球半径）→ 视为穿过筐口，不与管壁碰撞
+  if (horiz + r < R) return false;
+
+  // 球心水平已在环外 → 球完全错过筐，0.05m 容忍后跳过
+  if (horiz > R + tube + r) return false;
+
+  // 球心离环中心水平距离 → 取最近环上点的方向
   let dirx: number, dirz: number;
   if (horiz < 1e-5) { dirx = 1; dirz = 0; }
   else { dirx = dx / horiz; dirz = dz / horiz; }
-
   _ring.set(RIM.x + dirx * R, RIM.y, RIM.z + dirz * R);
   _n.subVectors(ball.pos, _ring);
   const dist = _n.length();
@@ -63,12 +70,12 @@ function resolveRim(ball: Ball): boolean {
   // 推出穿透
   ball.pos.addScaledVector(_n, minDist - dist);
   const vn = ball.vel.dot(_n);
-  if (vn < 0) ball.vel.addScaledVector(_n, -(1 + BALL.restitution * 0.6) * vn);
+  if (vn < 0) ball.vel.addScaledVector(_n, -(1 + BALL.restitution) * vn);
   ball.vel.multiplyScalar(0.92);
   return true;
 }
 
-/** 篮板：朝向球场的竖直平面 */
+/** 篮板：朝向球场的竖直平面，每帧只反弹一次（避免位置反复推回造成振荡） */
 function resolveBackboard(ball: Ball) {
   const bb = COURT.backboard;
   const r = BALL.radius;

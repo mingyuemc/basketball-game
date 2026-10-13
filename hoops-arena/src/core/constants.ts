@@ -59,3 +59,11 @@ export const SHOOT = {
   // 命中判定容差：球心水平落在 (rimRadius - ballRadius*0.5) 内即算命中（街机化宽容度）
   scoreTolerance: 0.5,
 };
+
+/** 盖帽判定参数（与开发文档 7.4 段一致） */
+export const BLOCK = {
+  horizRadius: 0.55,     // 横向：球心到防守人 0.55m 内才尝试盖帽
+  minBallY: 2.6,         // 球高需 > 此值（防止贴身一出球就被拍）
+  reboundVelH: 5,        // 盖帽后球的水平反向速度
+  reboundVelY: 2.2,      // 盖帽后球的垂直速度
+};

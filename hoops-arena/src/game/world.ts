@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { COURT, PLAYER, RULES, SHOOT } from '../core/constants';
+import { BALL as BALL_CONST, BLOCK, COURT, PLAYER, RULES, SHOOT } from '../core/constants';
 import { Ball, Player, Team } from './entities';
 import { stepBall } from './physics';
 import { updateAI, setAIDifficulty, type Difficulty } from './ai';
@@ -306,14 +306,16 @@ export class World {
     const b = this.ball;
     if (b.state !== 'flying') return;
     if (b.pos.y < 1.8) return;
+    // 球已在篮板后方（穿过篮板飞出）→ 不应被盖帽
+    if (b.pos.z > COURT.backboard.z + BALL_CONST.radius + 0.05) return;
     for (const p of this.players) {
       if (p === b.lastTouch) continue;
       if (b.lastTouch && p.team === b.lastTouch.team) continue;
       // 盖帽需满足：防守方起跳、横向足够近、且球已升到头顶以上（避免贴身一出球就被拍掉）
-      if (p.pos.y > 0.25 && planarV(p.pos, b.pos) < 0.55 && b.pos.y > 2.6 && b.pos.y < p.reachHeight) {
+      if (p.pos.y > 0.25 && planarV(p.pos, b.pos) < BLOCK.horizRadius && b.pos.y > BLOCK.minBallY && b.pos.y < p.reachHeight) {
         const dx = b.pos.x - p.pos.x, dz = b.pos.z - p.pos.z;
         const len = Math.max(Math.hypot(dx, dz), 1e-4);
-        b.vel.set((dx / len) * 5, 2.2, (dz / len) * 5);
+        b.vel.set((dx / len) * BLOCK.reboundVelH, BLOCK.reboundVelY, (dz / len) * BLOCK.reboundVelH);
         b.lastTouch = p;
         p.blocks++;
         this.event(`${p.isHuman ? '你' : p.name} 盖帽!`, 'block');

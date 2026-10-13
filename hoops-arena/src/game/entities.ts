@@ -106,5 +106,4 @@ export class Ball {
   airTime = 0;
   touchedRim = false;
   deadTimer = 0;
-  dribbleT = 0;
 }

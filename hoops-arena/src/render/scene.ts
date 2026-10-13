@@ -511,6 +511,7 @@ export class GameScene {
 
     // 手臂（指向身前）
     const arms = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.5, 4, 8), armMat);
+    arms.name = 'arms';
     arms.rotation.x = Math.PI / 2.2;
     arms.position.set(0, 1.32, 0.16);
     arms.castShadow = true;
@@ -566,8 +567,8 @@ export class GameScene {
       if (p.anim === 'run' || p.anim === 'dribble') {
         g.position.y += Math.abs(Math.sin(performance.now() / 90)) * 0.05;
       }
-      // 蓄力时手臂抬起示意
-      const arms = g.children[3] as THREE.Mesh;
+      // 蓄力时手臂抬起示意：按 name 找子节点（避免索引随 mesh 顺序改变）
+      const arms = g.getObjectByName('arms') as THREE.Mesh | null;
       if (arms) arms.rotation.x = p.charging ? Math.PI / 4 : Math.PI / 2.2;
     }
 
